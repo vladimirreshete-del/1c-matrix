@@ -6,6 +6,7 @@ import { api } from './services/api';
 import Dashboard from './components/Dashboard';
 import TasksView from './components/TasksView';
 import TeamView from './components/TeamView';
+import AIView from './components/AIView';
 import LoginScreen from './components/LoginScreen';
 
 const App: React.FC = () => {
@@ -18,40 +19,38 @@ const App: React.FC = () => {
 
   const tg = (window as any).Telegram?.WebApp;
   const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'dev_user_123';
-  const startParam = tg?.initDataUnsafe?.start_param; // Код из ссылки t.me/bot/app?startapp=CODE
+  const startParam = tg?.initDataUnsafe?.start_param; // ID админа из ссылки t.me/bot/app?startapp=ID
 
   useEffect(() => {
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      tg.headerColor = '#0F172A';
-      tg.backgroundColor = '#0F172A';
-    }
-
-    const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
-    const savedTeamId = localStorage.getItem('1c_matrix_team_id');
-    
-    // Если есть параметр в ссылке, приоритет ему (вход для исполнителя)
+    // Если приложение открыто по пригласительной ссылке
     if (startParam) {
       handleSelectRole(UserRole.EXECUTOR, startParam);
-    } else if (savedRole && savedRole !== UserRole.NONE) {
-      setRole(savedRole);
-      setTeamId(savedTeamId || userId);
-      loadData(savedRole === UserRole.ADMIN ? userId : (savedTeamId || ''));
     } else {
-      setIsLoading(false);
+      const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
+      const savedTeamId = localStorage.getItem('1c_matrix_team_id');
+      
+      if (savedRole && savedRole !== UserRole.NONE) {
+        setRole(savedRole);
+        setTeamId(savedTeamId || userId);
+        loadData(savedRole === UserRole.ADMIN ? userId : (savedTeamId || ''));
+      } else {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   const loadData = async (targetId: string) => {
-    if (!targetId) return;
+    if (!targetId) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const data = await api.getData(targetId);
       setTasks(data.tasks || []);
       setTeam(data.team || []);
     } catch (err) {
-      console.error("Failed to load data", err);
+      console.error("Data load error", err);
     } finally {
       setIsLoading(false);
     }
@@ -72,14 +71,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddTask = (task: Task) => {
-    const updated = [task, ...tasks];
+  const handleUpdateTask = (updatedTask: Task) => {
+    const updated = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
     setTasks(updated);
     syncData(updated, team);
   };
 
-  const handleUpdateTask = (updatedTask: Task) => {
-    const updated = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
+  const handleAddTask = (task: Task) => {
+    const updated = [task, ...tasks];
     setTasks(updated);
     syncData(updated, team);
   };
@@ -96,28 +95,26 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center gap-4">
+      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-blue-400 font-bold animate-pulse">MATRIX 1C LOADING...</p>
+        <p className="text-blue-400 font-black text-[10px] mt-4 tracking-widest uppercase">Matrix Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 shadow-2xl relative overflow-hidden">
-      <header className="p-4 flex items-center justify-between z-10 border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 relative overflow-hidden">
+      <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md z-30">
         <div>
           <h1 className="text-lg font-black tracking-tighter text-white">1C MATRIX</h1>
           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-            {role === UserRole.ADMIN ? `ID: ${userId}` : `Team ID: ${teamId}`}
+            {role === UserRole.ADMIN ? `ADMIN: ${userId}` : `TEAM: ${teamId}`}
           </p>
         </div>
         <button 
           onClick={() => { localStorage.clear(); window.location.reload(); }}
-          className="text-[9px] font-bold text-slate-500 border border-slate-800 px-2 py-1 rounded hover:text-red-400 transition-colors"
-        >
-          ВЫЙТИ
-        </button>
+          className="text-[9px] font-bold text-slate-500 border border-slate-800 px-2 py-1 rounded"
+        >ВЫЙТИ</button>
       </header>
 
       <main className="flex-1 overflow-y-auto z-10 custom-scrollbar">
@@ -140,14 +137,17 @@ const App: React.FC = () => {
             adminId={userId}
           />
         )}
+        {activeTab === 'ai' && (
+          <AIView tasks={tasks} teamCount={team.length} onUpdateTask={handleUpdateTask} />
+        )}
       </main>
 
-      <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-20">
-        {NAVIGATION.map((nav) => (
+      <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-30">
+        {[...NAVIGATION, { id: 'ai', label: 'AI', icon: <span className="text-xl">✨</span> }].map((nav) => (
           <button
             key={nav.id}
             onClick={() => setActiveTab(nav.id)}
-            className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+            className={`flex flex-col items-center gap-1 transition-all ${
               activeTab === nav.id ? 'text-blue-500 scale-105' : 'text-slate-500'
             }`}
           >
