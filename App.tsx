@@ -16,12 +16,19 @@ const App: React.FC = () => {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Attempt to get Telegram User ID
+  // Инициализация Telegram SDK
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.ready(); // Сообщает Telegram, что приложение загрузилось
+      tg.expand(); // Раскрывает приложение на весь экран
+    }
+  }, []);
+
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
   const userId = tgUser?.id?.toString() || 'dev_user_123';
 
   useEffect(() => {
-    // Load local auth state
     const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
     const savedTeamId = localStorage.getItem('1c_matrix_team_id');
     
@@ -32,15 +39,20 @@ const App: React.FC = () => {
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   const loadData = async (targetId: string) => {
     if (!targetId) return;
     setIsLoading(true);
-    const data = await api.getData(targetId);
-    setTasks(data.tasks);
-    setTeam(data.team);
-    setIsLoading(false);
+    try {
+      const data = await api.getData(targetId);
+      setTasks(data.tasks || []);
+      setTeam(data.team || []);
+    } catch (err) {
+      console.error("Failed to load data", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSelectRole = (selectedRole: UserRole, code?: string) => {
@@ -76,19 +88,18 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#0F172A] flex items-center justify-center">
+      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-blue-400 font-bold animate-pulse">MATRIX LOADING...</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 shadow-2xl relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
 
-      {/* Header */}
       <header className="p-5 flex items-center justify-between z-10 border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md">
         <div>
           <h1 className="text-xl font-black tracking-tighter text-white">1C MATRIX</h1>
@@ -97,24 +108,18 @@ const App: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {role === UserRole.ADMIN && (
-             <div className="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-500/20">
-               ID: {userId}
-             </div>
-          )}
           <button 
             onClick={() => {
               localStorage.clear();
               window.location.reload();
             }}
-            className="text-slate-500 hover:text-white transition-colors"
+            className="text-[10px] font-bold text-slate-500 hover:text-white border border-slate-800 px-2 py-1 rounded"
           >
-            Выйти
+            ВЫЙТИ
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto z-10 custom-scrollbar">
         {activeTab === 'dashboard' && <Dashboard tasks={tasks} team={team} />}
         {activeTab === 'tasks' && (
@@ -135,7 +140,6 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Modern Navigation */}
       <nav className="p-4 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-20">
         {NAVIGATION.map((nav) => (
           <button
