@@ -1,0 +1,14 @@
+
+services:
+  - type: web
+    name: matrix-1c-app
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+    disk:
+      name: database-storage
+      mountPath: /data
+      sizeGB: 1

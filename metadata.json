@@ -1,0 +1,8 @@
+{
+  "name": "1C Matrix",
+  "description": "A professional business management mini-app for Telegram, inspired by SBIS. Manage tasks, team members, and leverage AI for workflow optimization.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
