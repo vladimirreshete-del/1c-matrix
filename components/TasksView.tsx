@@ -1,25 +1,25 @@
 
 import React, { useState } from 'react';
 import { Task, TeamMember, TaskStatus, TaskPriority } from '../types';
-import { STATUS_CONFIG, PRIORITY_CONFIG } from '../constants';
-// Fix: Added CheckSquare to lucide-react imports
-import { Plus, Search, Calendar, User, MoreHorizontal, CheckSquare } from 'lucide-react';
+import { STATUS_CONFIG } from '../constants';
+import { Plus, Search, Calendar, User, CheckSquare, Clock, CheckCircle } from 'lucide-react';
 
 interface Props {
   tasks: Task[];
   team: TeamMember[];
   onAddTask: (task: Task) => void;
+  onUpdateTask: (task: Task) => void;
   isAdmin: boolean;
   executorId: string;
 }
 
-const TasksView: React.FC<Props> = ({ tasks, team, onAddTask, isAdmin, executorId }) => {
+const TasksView: React.FC<Props> = ({ tasks, team, onAddTask, onUpdateTask, isAdmin, executorId }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [assignee, setAssignee] = useState(team[0]?.id || '');
+  const [activeFilter, setActiveFilter] = useState<TaskStatus | 'ALL'>(TaskStatus.NEW);
 
-  // If executor, maybe filter tasks? (Let's show all for now, but usually executors only see theirs)
-  const displayTasks = isAdmin ? tasks : tasks; 
+  const filteredTasks = tasks.filter(t => activeFilter === 'ALL' || t.status === activeFilter);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,108 +39,121 @@ const TasksView: React.FC<Props> = ({ tasks, team, onAddTask, isAdmin, executorI
     setTitle('');
   };
 
+  const toggleStatus = (task: Task) => {
+    let nextStatus = task.status;
+    if (task.status === TaskStatus.NEW) nextStatus = TaskStatus.IN_PROGRESS;
+    else if (task.status === TaskStatus.IN_PROGRESS) nextStatus = TaskStatus.DONE;
+    else nextStatus = TaskStatus.NEW;
+
+    onUpdateTask({ ...task, status: nextStatus });
+  };
+
   return (
-    <div className="p-5 space-y-6">
+    <div className="p-4 space-y-4 pb-20">
+      {/* Tabs */}
+      <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
+        {[
+          { id: TaskStatus.NEW, label: 'Новые', icon: <Plus size={12}/> },
+          { id: TaskStatus.IN_PROGRESS, label: 'В работе', icon: <Clock size={12}/> },
+          { id: TaskStatus.DONE, label: 'Готово', icon: <CheckCircle size={12}/> }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveFilter(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+              activeFilter === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
           <input 
-            placeholder="Поиск по матрице..."
-            className="w-full bg-slate-800/50 border border-white/5 rounded-2xl py-3 pl-12 pr-4 text-sm outline-none focus:border-blue-500/50 transition-all backdrop-blur-sm"
+            placeholder="Поиск..."
+            className="w-full bg-slate-800/40 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none focus:border-blue-500/50 transition-all"
           />
         </div>
         {isAdmin && (
           <button 
             onClick={() => setIsAdding(true)}
-            className="bg-blue-600 hover:bg-blue-500 p-3.5 rounded-2xl transition-all active:scale-90 shadow-lg shadow-blue-600/20"
+            className="bg-blue-600 p-3 rounded-xl shadow-lg active:scale-90 transition-all"
           >
-            <Plus size={20} />
+            <Plus size={18} />
           </button>
         )}
       </div>
 
       {isAdding && (
-        <div className="bg-slate-800/80 border border-blue-500/30 rounded-3xl p-6 shadow-2xl animate-in fade-in slide-in-from-top-4 backdrop-blur-xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="font-black text-white italic tracking-tighter">НОВАЯ ЗАДАЧА</h3>
+        <div className="bg-slate-800 border border-blue-500/20 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-top-2">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <h3 className="font-black text-[10px] text-blue-400 uppercase tracking-widest">Создание задачи</h3>
             <input 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Что нужно сделать?"
-              className="w-full bg-slate-900/50 border border-white/5 p-4 rounded-xl text-sm outline-none focus:border-blue-500"
+              className="w-full bg-slate-900/50 border border-white/5 p-3 rounded-xl text-xs outline-none"
               autoFocus
             />
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Исполнитель</label>
-              <select 
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-                className="w-full bg-slate-900/50 border border-white/5 p-4 rounded-xl text-sm outline-none"
-              >
-                {team.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setIsAdding(false)}
-                className="flex-1 text-slate-400 font-bold text-xs p-4 rounded-xl hover:bg-white/5 transition-colors"
-              >
-                ОТМЕНА
-              </button>
-              <button 
-                type="submit"
-                className="flex-1 bg-blue-600 text-white font-black text-xs p-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-transform"
-              >
-                СОЗДАТЬ
-              </button>
+            <select 
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              className="w-full bg-slate-900/50 border border-white/5 p-3 rounded-xl text-xs outline-none"
+            >
+              {team.map(m => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
+            </select>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setIsAdding(false)} className="flex-1 text-slate-500 font-bold text-[10px] py-3">ОТМЕНА</button>
+              <button type="submit" className="flex-1 bg-blue-600 text-white font-black text-[10px] py-3 rounded-xl">СОЗДАТЬ</button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="space-y-4">
-        {displayTasks.map(task => {
+      <div className="space-y-3">
+        {filteredTasks.map(task => {
           const status = STATUS_CONFIG[task.status];
           const member = team.find(m => m.id === task.assignedTo);
           
           return (
-            <div key={task.id} className="bg-slate-800/40 border border-white/5 p-5 rounded-3xl group hover:border-blue-500/30 transition-all backdrop-blur-sm">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5 ${status.color}`}>
+            <div 
+              key={task.id} 
+              onClick={() => toggleStatus(task)}
+              className="bg-slate-800/30 border border-white/5 p-4 rounded-2xl active:scale-[0.98] transition-all cursor-pointer group hover:bg-slate-800/50"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase flex items-center gap-1 ${status.color}`}>
                   {status.icon}
                   {status.label}
                 </div>
-                <button className="text-slate-600 hover:text-white transition-colors">
-                  <MoreHorizontal size={18} />
-                </button>
+                <div className="text-[8px] font-bold text-slate-600">Нажми, чтобы сменить статус</div>
               </div>
               
-              <h4 className="text-white font-bold mb-4 leading-snug group-hover:text-blue-100 transition-colors">
+              <h4 className="text-white text-sm font-bold mb-3 leading-tight group-hover:text-blue-200 transition-colors">
                 {task.title}
               </h4>
               
-              <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-blue-600/20 flex items-center justify-center border border-blue-500/20">
-                    <User size={12} className="text-blue-400" />
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-bold truncate max-w-[80px]">
-                    {member?.name || 'Не назначен'}
-                  </span>
+              <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                <div className="flex items-center gap-1.5">
+                  <User size={10} className="text-blue-500" />
+                  <span className="text-[9px] text-slate-400 font-bold uppercase">{member?.name || '---'}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <Calendar size={12} />
-                  <span className="text-[10px] font-bold">{task.dueDate}</span>
+                <div className="flex items-center gap-1 text-slate-500">
+                  <Calendar size={10} />
+                  <span className="text-[9px] font-bold">{task.dueDate}</span>
                 </div>
               </div>
             </div>
           );
         })}
-        {displayTasks.length === 0 && (
-          <div className="text-center py-20 opacity-20">
-             <CheckSquare size={48} className="mx-auto mb-4" />
-             <p className="text-sm font-bold uppercase tracking-widest">Задач пока нет</p>
+        {filteredTasks.length === 0 && (
+          <div className="text-center py-12 opacity-20">
+             <CheckSquare size={32} className="mx-auto mb-2" />
+             <p className="text-[10px] font-black uppercase tracking-widest">Нет задач в этой категории</p>
           </div>
         )}
       </div>

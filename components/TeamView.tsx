@@ -1,19 +1,29 @@
 
 import React, { useState } from 'react';
 import { TeamMember } from '../types';
-import { UserPlus, Mail, ShieldCheck, MoreVertical } from 'lucide-react';
+import { UserPlus, Mail, ShieldCheck, MoreVertical, Link, Copy, Check } from 'lucide-react';
 
 interface Props {
   team: TeamMember[];
   onAddMember: (member: TeamMember) => void;
-  // Fix: Added isAdmin to Props interface to resolve type error in App.tsx
   isAdmin?: boolean;
+  adminId?: string;
 }
 
-const TeamView: React.FC<Props> = ({ team, onAddMember, isAdmin }) => {
+const TeamView: React.FC<Props> = ({ team, onAddMember, isAdmin, adminId }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState('Сотрудник');
+  const [copied, setCopied] = useState(false);
+
+  // Ссылка: t.me/botname/app?startapp=ID
+  const inviteLink = `https://t.me/super_crmka_bot/app?startapp=${adminId}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,55 +41,75 @@ const TeamView: React.FC<Props> = ({ team, onAddMember, isAdmin }) => {
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="bg-gradient-to-br from-sbis-primary to-blue-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-2xl font-bold">Ваша команда</h2>
-          <p className="text-blue-100 text-sm mt-1">{team.length} участников активно</p>
-          {/* Fix: Only show add button if isAdmin is true */}
-          {isAdmin && (
-            <button 
-              onClick={() => setIsAdding(true)}
-              className="mt-4 bg-white text-sbis-primary px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2"
-            >
-              <UserPlus size={16} />
-              Добавить
-            </button>
-          )}
+    <div className="p-4 space-y-4 pb-20">
+      {/* Invite Link Section */}
+      {isAdmin && (
+        <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-5 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 text-blue-500/10 group-hover:scale-110 transition-transform duration-700">
+             <Link size={80} />
+          </div>
+          <div className="relative z-10">
+            <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Ваша ссылка доступа</h3>
+            <p className="text-xs text-slate-300 mb-4 pr-12">Отправьте эту ссылку сотрудникам, чтобы они вошли сразу в вашу команду Matrix.</p>
+            <div className="flex items-center gap-2 bg-slate-900/80 p-2 rounded-xl border border-white/5">
+              <input 
+                readOnly 
+                value={inviteLink} 
+                className="flex-1 bg-transparent border-none text-[10px] text-blue-300 outline-none truncate"
+              />
+              <button 
+                onClick={handleCopyLink}
+                className="bg-blue-600 p-2 rounded-lg text-white hover:bg-blue-500 active:scale-90 transition-all"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
+          </div>
         </div>
-        <UsersCircle className="absolute -right-4 -bottom-4 opacity-20 text-white" />
+      )}
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Команда ({team.length})</h2>
+        {isAdmin && (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="text-[10px] font-black text-blue-500 uppercase flex items-center gap-1 hover:text-blue-400"
+          >
+            <UserPlus size={14} />
+            Добавить
+          </button>
+        )}
       </div>
 
       {isAdding && (
-        <div className="bg-white border border-sbis-border rounded-xl p-4 shadow-xl">
+        <div className="bg-slate-800 border border-blue-500/20 rounded-2xl p-5 shadow-2xl animate-in slide-in-from-top-2">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="font-bold text-sbis-primary">Новый участник</h3>
-            <div className="space-y-2">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">ФИО</label>
+            <div className="space-y-1">
+              <label className="text-[9px] text-slate-500 font-bold uppercase">ФИО сотрудника</label>
               <input 
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full border-b border-sbis-border py-2 focus:outline-none focus:border-sbis-primary"
-                placeholder="Иванов Иван..."
+                className="w-full bg-slate-900/50 border border-white/5 p-3 rounded-xl text-xs outline-none"
+                placeholder="Алексей Иванов..."
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">Должность</label>
+            <div className="space-y-1">
+              <label className="text-[9px] text-slate-500 font-bold uppercase">Специализация</label>
               <select 
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full bg-gray-50 p-2 rounded-lg text-sm"
+                className="w-full bg-slate-900/50 border border-white/5 p-3 rounded-xl text-xs outline-none"
               >
-                <option>Сотрудник</option>
-                <option>Менеджер</option>
                 <option>Разработчик</option>
+                <option>Менеджер</option>
                 <option>Дизайнер</option>
+                <option>Аналитик</option>
               </select>
             </div>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setIsAdding(false)} className="text-sm text-gray-500 px-3">Отмена</button>
-              <button type="submit" className="bg-sbis-primary text-white text-sm px-6 py-2 rounded-xl font-bold">Сохранить</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setIsAdding(false)} className="flex-1 text-slate-500 font-bold text-[10px]">ОТМЕНА</button>
+              <button type="submit" className="flex-1 bg-blue-600 text-white font-black text-[10px] py-3 rounded-xl">СОХРАНИТЬ</button>
             </div>
           </form>
         </div>
@@ -87,30 +117,20 @@ const TeamView: React.FC<Props> = ({ team, onAddMember, isAdmin }) => {
 
       <div className="grid grid-cols-1 gap-3">
         {team.map(member => (
-          <div key={member.id} className="bg-white p-4 rounded-xl border border-sbis-border flex items-center gap-4 hover:shadow-md transition-shadow">
-            <img src={member.avatar} className="w-12 h-12 rounded-full ring-2 ring-gray-50 shadow-sm" alt="" />
+          <div key={member.id} className="bg-slate-800/20 p-4 rounded-2xl border border-white/5 flex items-center gap-4 group">
+            <img src={member.avatar} className="w-10 h-10 rounded-xl ring-2 ring-white/5 shadow-xl group-hover:scale-110 transition-transform" alt="" />
             <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-gray-800 truncate">{member.name}</h4>
-              <p className="text-xs text-sbis-primary font-medium">{member.role}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Mail size={10} className="text-gray-400" />
-                <span className="text-[10px] text-gray-400 truncate">{member.email}</span>
-              </div>
+              <h4 className="font-bold text-white text-sm truncate">{member.name}</h4>
+              <p className="text-[10px] text-blue-400 font-black uppercase tracking-tighter">{member.role}</p>
             </div>
-            <button className="text-gray-300 p-1">
-              <MoreVertical size={18} />
-            </button>
+            <div className="bg-slate-900 p-2 rounded-lg text-slate-600">
+              <Mail size={14} />
+            </div>
           </div>
         ))}
       </div>
     </div>
   );
 };
-
-const UsersCircle = ({ className }: { className?: string }) => (
-  <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <circle cx="60" cy="60" r="50" stroke="currentColor" strokeWidth="20" strokeDasharray="20 10"/>
-  </svg>
-);
 
 export default TeamView;
