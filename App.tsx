@@ -19,7 +19,8 @@ const App: React.FC = () => {
   const tg = (window as any).Telegram?.WebApp;
   const userData = tg?.initDataUnsafe?.user;
   const userId = userData?.id?.toString() || 'dev_user_123';
-  const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Новый участник';
+  const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Администратор';
+  const userAvatar = userData?.photo_url || `https://picsum.photos/seed/${userId}/100/100`;
   const startParam = tg?.initDataUnsafe?.start_param;
 
   useEffect(() => {
@@ -50,20 +51,31 @@ const App: React.FC = () => {
       let currentTasks = data.tasks || [];
       let currentTeam = data.team || [];
 
+      // Синхронизация профиля текущего пользователя
+      const currentUserProfile: TeamMember = {
+        id: userId,
+        name: userName,
+        role: currentRole === UserRole.ADMIN ? 'Владелец' : 'Участник',
+        systemRole: currentRole,
+        email: userData?.username ? `@${userData.username}` : 'tg-user',
+        avatar: userAvatar
+      };
+
       if (currentRole === UserRole.EXECUTOR) {
         const isAlreadyInTeam = currentTeam.some((m: TeamMember) => m.id === userId);
         if (!isAlreadyInTeam) {
-          const newMember: TeamMember = {
-            id: userId,
-            name: userName,
-            role: 'Участник',
-            systemRole: UserRole.EXECUTOR,
-            email: userData?.username ? `@${userData.username}` : 'tg-user',
-            avatar: userData?.photo_url || `https://picsum.photos/seed/${userId}/100/100`
-          };
-          currentTeam = [...currentTeam, newMember];
+          currentTeam = [...currentTeam, currentUserProfile];
           await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
         }
+      } else if (currentRole === UserRole.ADMIN) {
+        // Если это админ, обновляем его данные в списке команды (аватарку и имя из ТГ)
+        const adminIndex = currentTeam.findIndex((m: TeamMember) => m.id === userId || m.systemRole === UserRole.ADMIN);
+        if (adminIndex === -1) {
+          currentTeam = [currentUserProfile, ...currentTeam.filter((m: any) => m.id !== '1')];
+        } else {
+          currentTeam[adminIndex] = { ...currentTeam[adminIndex], ...currentUserProfile };
+        }
+        await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
       }
 
       setTasks(currentTasks);
@@ -87,7 +99,6 @@ const App: React.FC = () => {
   const syncData = (newTasks: Task[], newTeam: TeamMember[]) => {
     const targetId = role === UserRole.ADMIN ? userId : teamId;
     if (targetId) {
-      // Filter out deleted tasks
       const filteredTasks = newTasks.filter(t => (t as any).status !== 'DELETED');
       api.saveData(targetId, { tasks: filteredTasks, team: newTeam });
     }
@@ -126,15 +137,18 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 relative overflow-hidden">
       <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md z-30">
-        <div>
-          <h1 className="text-lg font-black tracking-tighter text-white uppercase">1C MATRIX</h1>
-          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-            {role === UserRole.ADMIN ? `ADMIN MODE` : `TEAM ID: ${teamId}`}
-          </p>
+        <div className="flex items-center gap-3">
+          <img src={userAvatar} className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10" alt="Avatar" />
+          <div>
+            <h1 className="text-xs font-black tracking-tighter text-white uppercase leading-none">1C MATRIX</h1>
+            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+              {role === UserRole.ADMIN ? `Владелец: ${userName}` : `Команда: ${teamId}`}
+            </p>
+          </div>
         </div>
         <button 
           onClick={() => { localStorage.clear(); window.location.reload(); }}
-          className="text-[9px] font-bold text-slate-500 border border-slate-800 px-2 py-1 rounded"
+          className="text-[9px] font-bold text-slate-500 border border-slate-800 px-2 py-1 rounded active:bg-white/5 transition-colors"
         >ВЫЙТИ</button>
       </header>
 
@@ -153,7 +167,7 @@ const App: React.FC = () => {
         {activeTab === 'team' && (
           <TeamView 
             team={team} 
-            onAddMember={handleAddTask as any} // Using polymorphic types for simplified demo
+            onAddMember={handleAddTask as any}
             onUpdateTeam={handleUpdateTeam}
             isAdmin={role === UserRole.ADMIN}
             adminId={userId}
@@ -162,7 +176,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-30">
+      <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-30 pb-safe">
         {NAVIGATION.map((nav) => (
           <button
             key={nav.id}

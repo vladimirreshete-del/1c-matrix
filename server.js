@@ -40,9 +40,10 @@ const saveDb = () => {
 
 app.get('/api/data/:id', (req, res) => {
   const { id } = req.params;
+  // Возвращаем пустые массивы, чтобы фронтенд сам наполнил их данными из Telegram WebApp
   const data = db[id] || { 
     tasks: [], 
-    team: [{ id: '1', name: 'Системный Администратор', role: 'Админ', email: 'matrix@1c.ru', avatar: 'https://picsum.photos/seed/admin/100/100' }] 
+    team: [] 
   };
   res.json(data);
 });
