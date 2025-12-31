@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserRole } from '../types';
-import { Shield, Users, ArrowRight, Link } from 'lucide-react';
+import { Shield, Users, ArrowRight, Link, LayoutGrid } from 'lucide-react';
 
 interface Props {
   onSelect: (role: UserRole, teamId?: string) => void;
@@ -12,74 +12,95 @@ const LoginScreen: React.FC<Props> = ({ onSelect }) => {
   const [showInviteInput, setShowInviteInput] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white p-8 flex flex-col justify-center items-center">
-      <div className="mb-12 text-center animate-in fade-in zoom-in duration-700">
-        <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-2xl shadow-blue-500/20 rotate-12">
-          <Shield size={40} className="-rotate-12" />
+    <div className="min-h-screen bg-[#020617] text-white p-8 flex flex-col justify-between items-center relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse-slow"></div>
+      <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-600/10 blur-[100px] rounded-full"></div>
+
+      <div className="flex-1 flex flex-col justify-center items-center w-full max-w-sm z-10">
+        <div className="mb-14 text-center">
+          <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-2xl shadow-blue-500/40 animate-float">
+            <LayoutGrid size={32} className="text-white" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter mb-3 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+            1C MATRIX
+          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <div className="h-[1px] w-4 bg-blue-500/30"></div>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">System Engine v4.0</p>
+            <div className="h-[1px] w-4 bg-blue-500/30"></div>
+          </div>
         </div>
-        <h1 className="text-4xl font-black tracking-tighter mb-2">1C MATRIX</h1>
-        <p className="text-slate-400 text-sm font-medium">Система управления 4.0</p>
+
+        {!showInviteInput ? (
+          <div className="w-full space-y-4">
+            <button 
+              onClick={() => onSelect(UserRole.ADMIN)}
+              className="w-full glass-card p-6 rounded-[2rem] flex items-center gap-5 transition-all hover:bg-slate-800/60 active:scale-[0.97] group border-l-4 border-l-blue-500"
+            >
+              <div className="bg-blue-500/20 p-3 rounded-2xl text-blue-400">
+                <Shield size={22} />
+              </div>
+              <div className="text-left flex-1">
+                <div className="text-xs font-black uppercase tracking-widest text-white/90">Создать Matrix</div>
+                <div className="text-[9px] text-slate-500 font-bold mt-0.5">Режим Администратора</div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <ArrowRight size={14} className="text-blue-400" />
+              </div>
+            </button>
+
+            <button 
+              onClick={() => setShowInviteInput(true)}
+              className="w-full glass-card p-6 rounded-[2rem] flex items-center gap-5 transition-all hover:bg-slate-800/60 active:scale-[0.97] group border-l-4 border-l-slate-600"
+            >
+              <div className="bg-slate-700/30 p-3 rounded-2xl text-slate-400">
+                <Users size={22} />
+              </div>
+              <div className="text-left flex-1">
+                <div className="text-xs font-black uppercase tracking-widest text-white/90">Войти по коду</div>
+                <div className="text-[9px] text-slate-500 font-bold mt-0.5">Режим Исполнителя</div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <ArrowRight size={14} className="text-slate-400" />
+              </div>
+            </button>
+          </div>
+        ) : (
+          <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="glass-card p-2 rounded-[1.5rem] flex items-center group focus-within:border-blue-500/50 transition-all">
+              <div className="w-10 h-10 flex items-center justify-center text-blue-500">
+                <Link size={18} />
+              </div>
+              <input 
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="Вставьте код приглашения..."
+                className="bg-transparent border-none outline-none text-xs w-full py-4 font-bold placeholder:text-slate-600"
+                autoFocus
+              />
+            </div>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => onSelect(UserRole.EXECUTOR, inviteCode)}
+                className="w-full bg-blue-600 hover:bg-blue-500 p-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-30"
+                disabled={!inviteCode}
+              >
+                Присоединиться к Matrix
+              </button>
+              <button 
+                onClick={() => setShowInviteInput(false)}
+                className="w-full text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] py-2 hover:text-white transition-colors"
+              >
+                Вернуться назад
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {!showInviteInput ? (
-        <div className="w-full max-w-xs space-y-4 animate-in slide-in-from-bottom-8 duration-500">
-          <button 
-            onClick={() => onSelect(UserRole.ADMIN)}
-            className="w-full bg-blue-600 hover:bg-blue-500 p-5 rounded-2xl flex items-center gap-4 transition-all group active:scale-95 shadow-lg shadow-blue-600/20"
-          >
-            <div className="bg-white/10 p-2 rounded-xl group-hover:scale-110 transition-transform">
-              <Shield size={24} />
-            </div>
-            <div className="text-left">
-              <div className="font-bold">Создать Matrix</div>
-              <div className="text-[10px] opacity-60">Режим Администратора</div>
-            </div>
-            <ArrowRight size={18} className="ml-auto opacity-40 group-hover:opacity-100" />
-          </button>
-
-          <button 
-            onClick={() => setShowInviteInput(true)}
-            className="w-full bg-slate-800/50 hover:bg-slate-800 p-5 rounded-2xl flex items-center gap-4 transition-all group active:scale-95 border border-slate-700/50"
-          >
-            <div className="bg-white/10 p-2 rounded-xl group-hover:scale-110 transition-transform">
-              <Users size={24} />
-            </div>
-            <div className="text-left">
-              <div className="font-bold">Войти по коду</div>
-              <div className="text-[10px] opacity-60">Режим Исполнителя</div>
-            </div>
-            <ArrowRight size={18} className="ml-auto opacity-40 group-hover:opacity-100" />
-          </button>
-        </div>
-      ) : (
-        <div className="w-full max-w-xs space-y-4 animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-slate-800 p-2 rounded-2xl border border-blue-500/30 flex items-center">
-            <Link size={20} className="mx-3 text-blue-400" />
-            <input 
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="Код приглашения..."
-              className="bg-transparent border-none outline-none text-sm w-full py-3"
-              autoFocus
-            />
-          </div>
-          <button 
-            onClick={() => onSelect(UserRole.EXECUTOR, inviteCode)}
-            className="w-full bg-blue-600 p-4 rounded-2xl font-bold transition-all active:scale-95 disabled:opacity-50"
-            disabled={!inviteCode}
-          >
-            Присоединиться
-          </button>
-          <button 
-            onClick={() => setShowInviteInput(false)}
-            className="w-full text-slate-500 text-xs font-bold uppercase tracking-widest"
-          >
-            Назад
-          </button>
-        </div>
-      )}
-
-      <div className="mt-20 text-[10px] text-slate-600 font-bold uppercase tracking-[0.2em]">
+      <div className="mt-10 py-6 text-[9px] text-slate-700 font-black uppercase tracking-[0.5em] z-10">
         Enterprise Edition 2025
       </div>
     </div>
