@@ -20,9 +20,9 @@ const TeamView: React.FC<Props> = ({ team, onAddMember, onUpdateTeam, isAdmin, a
   const [copied, setCopied] = useState(false);
 
   const tg = (window as any).Telegram?.WebApp;
-  const botUsername = tg?.initDataUnsafe?.bot_inline_mode ? 'matrix_1c_bot' : 'your_bot_name'; // Имя бота
-  const inviteLink = `https://t.me/share/url?url=https://t.me/your_bot_name/app?startapp=${adminId}&text=Присоединяйся к моей команде в 1C Matrix!`;
-  const directLink = `https://t.me/your_bot_name/app?startapp=${adminId}`;
+  const botUsername = tg?.initDataUnsafe?.bot_inline_mode ? 'matrix_1c_bot' : 'super_crmka_bot'; // Имя бота
+  const inviteLink = `https://t.me/share/url?url=https://t.me/super_crmka_bot/app?startapp=${adminId}&text=Присоединяйся к моей команде в 1C Matrix!`;
+  const directLink = `https://t.me/super_crmka_bot/app?startapp=${adminId}`;
 
   const handleCopy = () => {
     if (navigator.clipboard) {
