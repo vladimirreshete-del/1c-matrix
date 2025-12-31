@@ -17,11 +17,14 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const tg = (window as any).Telegram?.WebApp;
-  const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'dev_user_123';
+  const userData = tg?.initDataUnsafe?.user;
+  const userId = userData?.id?.toString() || 'dev_user_123';
+  const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Новый участник';
   const startParam = tg?.initDataUnsafe?.start_param;
 
   useEffect(() => {
-    if (startParam) {
+    // Если есть startParam - значит человек пришел по ссылке
+    if (startParam && role === UserRole.NONE) {
       handleSelectRole(UserRole.EXECUTOR, startParam);
     } else {
       const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
@@ -30,14 +33,14 @@ const App: React.FC = () => {
       if (savedRole && savedRole !== UserRole.NONE) {
         setRole(savedRole);
         setTeamId(savedTeamId || userId);
-        loadData(savedRole === UserRole.ADMIN ? userId : (savedTeamId || ''));
+        loadData(savedRole === UserRole.ADMIN ? userId : (savedTeamId || ''), savedRole);
       } else {
         setIsLoading(false);
       }
     }
   }, []);
 
-  const loadData = async (targetId: string) => {
+  const loadData = async (targetId: string, currentRole: UserRole) => {
     if (!targetId) {
       setIsLoading(false);
       return;
@@ -45,8 +48,28 @@ const App: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await api.getData(targetId);
-      setTasks(data.tasks || []);
-      setTeam(data.team || []);
+      let currentTasks = data.tasks || [];
+      let currentTeam = data.team || [];
+
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Авто-добавление участника
+      if (currentRole === UserRole.EXECUTOR) {
+        const isAlreadyInTeam = currentTeam.some((m: TeamMember) => m.id === userId);
+        if (!isAlreadyInTeam) {
+          const newMember: TeamMember = {
+            id: userId,
+            name: userName,
+            role: 'Участник (по ссылке)',
+            email: userData?.username ? `@${userData.username}` : 'tg-user',
+            avatar: userData?.photo_url || `https://picsum.photos/seed/${userId}/100/100`
+          };
+          currentTeam = [...currentTeam, newMember];
+          // Сохраняем обновленную команду в базу админа
+          await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
+        }
+      }
+
+      setTasks(currentTasks);
+      setTeam(currentTeam);
     } catch (err) {
       console.error("Data load error", err);
     } finally {
@@ -60,12 +83,13 @@ const App: React.FC = () => {
     setTeamId(finalTeamId);
     localStorage.setItem('1c_matrix_role', selectedRole);
     localStorage.setItem('1c_matrix_team_id', finalTeamId);
-    loadData(finalTeamId);
+    loadData(finalTeamId, selectedRole);
   };
 
   const syncData = (newTasks: Task[], newTeam: TeamMember[]) => {
-    if (role === UserRole.ADMIN) {
-      api.saveData(userId, { tasks: newTasks, team: newTeam });
+    const targetId = role === UserRole.ADMIN ? userId : teamId;
+    if (targetId) {
+      api.saveData(targetId, { tasks: newTasks, team: newTeam });
     }
   };
 
@@ -95,6 +119,7 @@ const App: React.FC = () => {
     return (
       <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-[10px] font-bold text-blue-500 uppercase tracking-widest">Загрузка Matrix...</p>
       </div>
     );
   }
@@ -103,9 +128,9 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 relative overflow-hidden">
       <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md z-30">
         <div>
-          <h1 className="text-lg font-black tracking-tighter text-white">1C MATRIX</h1>
+          <h1 className="text-lg font-black tracking-tighter text-white uppercase">1C MATRIX</h1>
           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-            {role === UserRole.ADMIN ? `ADMIN: ${userId}` : `TEAM: ${teamId}`}
+            {role === UserRole.ADMIN ? `ADMIN MODE` : `TEAM ID: ${teamId}`}
           </p>
         </div>
         <button 
