@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TeamMember, UserRole } from './types';
 import { NAVIGATION } from './constants';
 import { api } from './services/api';
@@ -15,11 +15,12 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const loadingTimeoutRef = useRef<number | null>(null);
 
   // Безопасное получение данных Telegram
   const tg = (window as any).Telegram?.WebApp;
   const userData = tg?.initDataUnsafe?.user;
-  const userId = userData?.id?.toString() || 'user_' + Math.random().toString(36).substr(2, 5);
+  const userId = userData?.id?.toString() || 'user_dev';
   const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Пользователь';
   const userAvatar = userData?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`;
   const startParam = tg?.initDataUnsafe?.start_param;
@@ -32,11 +33,16 @@ const App: React.FC = () => {
     
     setIsLoading(true);
     try {
+      // Таймаут на запрос к API, чтобы не ждать вечно
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
       const data = await api.getData(targetId);
+      clearTimeout(timeoutId);
+
       let currentTasks = Array.isArray(data.tasks) ? data.tasks : [];
       let currentTeam = Array.isArray(data.team) ? data.team : [];
 
-      // Формируем профиль текущего юзера
       const currentUserProfile: TeamMember = {
         id: userId,
         name: userName,
@@ -47,14 +53,12 @@ const App: React.FC = () => {
       };
 
       if (currentRole === UserRole.EXECUTOR) {
-        // Проверяем, есть ли исполнитель в команде админа
         const isAlreadyInTeam = currentTeam.some((m: TeamMember) => m.id === userId);
         if (!isAlreadyInTeam) {
           currentTeam = [...currentTeam, currentUserProfile];
           await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
         }
       } else if (currentRole === UserRole.ADMIN) {
-        // Обновляем данные админа (вдруг сменил фото в ТГ)
         const adminIndex = currentTeam.findIndex((m: TeamMember) => m.id === userId || m.systemRole === UserRole.ADMIN);
         if (adminIndex === -1) {
           currentTeam = [currentUserProfile, ...currentTeam];
@@ -67,38 +71,54 @@ const App: React.FC = () => {
       setTasks(currentTasks);
       setTeam(currentTeam);
     } catch (err) {
-      console.error("Ошибка загрузки данных:", err);
-      // В случае ошибки не оставляем пустой экран
-      setTasks([]);
-      setTeam([]);
+      console.error("Data Load Error:", err);
+      // Если это первый запуск или ошибка сети, всё равно пускаем в приложение
     } finally {
       setIsLoading(false);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     }
   }, [userId, userName, userAvatar, userData?.username]);
 
   useEffect(() => {
-    const initApp = async () => {
-      // Приоритет 1: Вход по ссылке (start_param)
-      if (startParam) {
-        handleSelectRole(UserRole.EXECUTOR, startParam);
-        return;
+    // ПРЕДОХРАНИТЕЛЬ: Если через 5 секунд приложение всё еще грузится - выключаем лоадер принудительно
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      if (isLoading) {
+        console.warn("Loading safety timeout triggered");
+        setIsLoading(false);
       }
+    }, 5000);
 
-      // Приоритет 2: Сохраненная сессия
-      const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
-      const savedTeamId = localStorage.getItem('1c_matrix_team_id');
-      
-      if (savedRole && savedRole !== UserRole.NONE && savedTeamId) {
-        setRole(savedRole);
-        setTeamId(savedTeamId);
-        await loadData(savedTeamId, savedRole);
-      } else {
+    const initApp = async () => {
+      try {
+        if (startParam) {
+          setRole(UserRole.EXECUTOR);
+          setTeamId(startParam);
+          localStorage.setItem('1c_matrix_role', UserRole.EXECUTOR);
+          localStorage.setItem('1c_matrix_team_id', startParam);
+          await loadData(startParam, UserRole.EXECUTOR);
+        } else {
+          const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
+          const savedTeamId = localStorage.getItem('1c_matrix_team_id');
+          
+          if (savedRole && savedRole !== UserRole.NONE && savedTeamId) {
+            setRole(savedRole);
+            setTeamId(savedTeamId);
+            await loadData(savedTeamId, savedRole);
+          } else {
+            setIsLoading(false);
+          }
+        }
+      } catch (e) {
+        console.error("Init Error", e);
         setIsLoading(false);
       }
     };
 
     initApp();
-  }, []);
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
+  }, [startParam, loadData]);
 
   const handleSelectRole = (selectedRole: UserRole, code?: string) => {
     const finalTeamId = selectedRole === UserRole.ADMIN ? userId : (code || '');
@@ -116,7 +136,6 @@ const App: React.FC = () => {
   const syncData = (newTasks: Task[], newTeam: TeamMember[]) => {
     const targetId = role === UserRole.ADMIN ? userId : teamId;
     if (targetId) {
-      // Не сохраняем задачи со статусом DELETED на сервер (мягкое удаление)
       const activeTasks = newTasks.filter(t => (t as any).status !== 'DELETED');
       api.saveData(targetId, { tasks: activeTasks, team: newTeam });
     }
@@ -141,11 +160,11 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center animate-pulse">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <div className="text-center">
-          <h1 className="text-white font-black italic text-lg tracking-tighter">1C MATRIX</h1>
-          <p className="text-[9px] font-bold text-blue-500/60 uppercase tracking-[0.3em]">Инициализация системы...</p>
+      <div className="fixed inset-0 bg-[#020617] flex flex-col items-center justify-center z-[100]">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(37,99,235,0.3)]"></div>
+        <div className="text-center animate-pulse">
+          <h1 className="text-white font-black italic text-2xl tracking-tighter">1C MATRIX</h1>
+          <p className="text-[10px] font-bold text-blue-500/80 uppercase tracking-[0.4em] mt-2">Initializing System...</p>
         </div>
       </div>
     );
@@ -156,26 +175,26 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 relative overflow-hidden">
-      <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/90 backdrop-blur-md z-30 pt-safe">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#020617] text-slate-200 relative overflow-hidden">
+      <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#020617]/90 backdrop-blur-md z-30 pt-safe">
         <div className="flex items-center gap-3">
           <img 
             src={userAvatar} 
-            className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10" 
-            onError={(e) => { (e.target as any).src = 'https://ui-avatars.com/api/?name=User'; }}
+            className="w-9 h-9 rounded-xl object-cover ring-1 ring-white/10" 
+            onError={(e) => { (e.target as any).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}`; }}
             alt="User" 
           />
           <div className="min-w-0">
             <h1 className="text-xs font-black tracking-tighter text-white uppercase leading-none">1C MATRIX</h1>
-            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 truncate max-w-[120px]">
-              {role === UserRole.ADMIN ? `Владелец: ${userName}` : `Код: ${teamId}`}
+            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-1 truncate max-w-[140px]">
+              {role === UserRole.ADMIN ? userName : `ID: ${teamId}`}
             </p>
           </div>
         </div>
         <button 
           onClick={() => { localStorage.clear(); window.location.reload(); }}
-          className="text-[8px] font-black text-slate-500 border border-slate-800 px-2 py-1.5 rounded-lg active:bg-white/5 transition-all uppercase tracking-tighter"
-        >Сбросить</button>
+          className="text-[8px] font-black text-slate-500 border border-slate-800 px-3 py-2 rounded-xl active:bg-white/5 transition-all uppercase tracking-tighter"
+        >Выйти</button>
       </header>
 
       <main className="flex-1 overflow-y-auto z-10 custom-scrollbar">
@@ -202,19 +221,19 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="p-3 bg-[#0F172A]/95 backdrop-blur-2xl border-t border-white/5 flex justify-around items-center z-30 pb-safe">
+      <nav className="p-4 bg-[#020617]/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center z-30 pb-safe">
         {NAVIGATION.map((nav) => (
           <button
             key={nav.id}
             onClick={() => setActiveTab(nav.id)}
-            className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+            className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${
               activeTab === nav.id ? 'text-blue-500 scale-110' : 'text-slate-600'
             }`}
           >
-            <div className={`p-2 rounded-xl transition-colors ${activeTab === nav.id ? 'bg-blue-500/10' : ''}`}>
+            <div className={`p-2.5 rounded-2xl transition-all ${activeTab === nav.id ? 'bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : ''}`}>
               {nav.icon}
             </div>
-            <span className="text-[8px] font-black uppercase tracking-tighter">{nav.label}</span>
+            <span className="text-[8px] font-black uppercase tracking-[0.1em]">{nav.label}</span>
           </button>
         ))}
       </nav>
