@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Task, TeamMember, UserRole } from './types';
 import { NAVIGATION } from './constants';
 import { api } from './services/api';
@@ -16,62 +16,48 @@ const App: React.FC = () => {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Безопасное получение данных Telegram
   const tg = (window as any).Telegram?.WebApp;
   const userData = tg?.initDataUnsafe?.user;
-  const userId = userData?.id?.toString() || 'dev_user_123';
-  const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Администратор';
-  const userAvatar = userData?.photo_url || `https://picsum.photos/seed/${userId}/100/100`;
+  const userId = userData?.id?.toString() || 'user_' + Math.random().toString(36).substr(2, 5);
+  const userName = userData ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Пользователь';
+  const userAvatar = userData?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`;
   const startParam = tg?.initDataUnsafe?.start_param;
 
-  useEffect(() => {
-    if (startParam && role === UserRole.NONE) {
-      handleSelectRole(UserRole.EXECUTOR, startParam);
-    } else {
-      const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
-      const savedTeamId = localStorage.getItem('1c_matrix_team_id');
-      
-      if (savedRole && savedRole !== UserRole.NONE) {
-        setRole(savedRole);
-        setTeamId(savedTeamId || userId);
-        loadData(savedRole === UserRole.ADMIN ? userId : (savedTeamId || ''), savedRole);
-      } else {
-        setIsLoading(false);
-      }
-    }
-  }, []);
-
-  const loadData = async (targetId: string, currentRole: UserRole) => {
+  const loadData = useCallback(async (targetId: string, currentRole: UserRole) => {
     if (!targetId) {
       setIsLoading(false);
       return;
     }
+    
     setIsLoading(true);
     try {
       const data = await api.getData(targetId);
-      let currentTasks = data.tasks || [];
-      let currentTeam = data.team || [];
+      let currentTasks = Array.isArray(data.tasks) ? data.tasks : [];
+      let currentTeam = Array.isArray(data.team) ? data.team : [];
 
-      // Синхронизация профиля текущего пользователя
+      // Формируем профиль текущего юзера
       const currentUserProfile: TeamMember = {
         id: userId,
         name: userName,
         role: currentRole === UserRole.ADMIN ? 'Владелец' : 'Участник',
         systemRole: currentRole,
-        email: userData?.username ? `@${userData.username}` : 'tg-user',
+        email: userData?.username ? `@${userData.username}` : 'id' + userId,
         avatar: userAvatar
       };
 
       if (currentRole === UserRole.EXECUTOR) {
+        // Проверяем, есть ли исполнитель в команде админа
         const isAlreadyInTeam = currentTeam.some((m: TeamMember) => m.id === userId);
         if (!isAlreadyInTeam) {
           currentTeam = [...currentTeam, currentUserProfile];
           await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
         }
       } else if (currentRole === UserRole.ADMIN) {
-        // Если это админ, обновляем его данные в списке команды (аватарку и имя из ТГ)
+        // Обновляем данные админа (вдруг сменил фото в ТГ)
         const adminIndex = currentTeam.findIndex((m: TeamMember) => m.id === userId || m.systemRole === UserRole.ADMIN);
         if (adminIndex === -1) {
-          currentTeam = [currentUserProfile, ...currentTeam.filter((m: any) => m.id !== '1')];
+          currentTeam = [currentUserProfile, ...currentTeam];
         } else {
           currentTeam[adminIndex] = { ...currentTeam[adminIndex], ...currentUserProfile };
         }
@@ -81,14 +67,45 @@ const App: React.FC = () => {
       setTasks(currentTasks);
       setTeam(currentTeam);
     } catch (err) {
-      console.error("Data load error", err);
+      console.error("Ошибка загрузки данных:", err);
+      // В случае ошибки не оставляем пустой экран
+      setTasks([]);
+      setTeam([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, userName, userAvatar, userData?.username]);
+
+  useEffect(() => {
+    const initApp = async () => {
+      // Приоритет 1: Вход по ссылке (start_param)
+      if (startParam) {
+        handleSelectRole(UserRole.EXECUTOR, startParam);
+        return;
+      }
+
+      // Приоритет 2: Сохраненная сессия
+      const savedRole = localStorage.getItem('1c_matrix_role') as UserRole;
+      const savedTeamId = localStorage.getItem('1c_matrix_team_id');
+      
+      if (savedRole && savedRole !== UserRole.NONE && savedTeamId) {
+        setRole(savedRole);
+        setTeamId(savedTeamId);
+        await loadData(savedTeamId, savedRole);
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
 
   const handleSelectRole = (selectedRole: UserRole, code?: string) => {
-    const finalTeamId = selectedRole === UserRole.ADMIN ? userId : code || '';
+    const finalTeamId = selectedRole === UserRole.ADMIN ? userId : (code || '');
+    if (!finalTeamId && selectedRole === UserRole.EXECUTOR) {
+      alert('Необходим код приглашения');
+      return;
+    }
     setRole(selectedRole);
     setTeamId(finalTeamId);
     localStorage.setItem('1c_matrix_role', selectedRole);
@@ -99,8 +116,9 @@ const App: React.FC = () => {
   const syncData = (newTasks: Task[], newTeam: TeamMember[]) => {
     const targetId = role === UserRole.ADMIN ? userId : teamId;
     if (targetId) {
-      const filteredTasks = newTasks.filter(t => (t as any).status !== 'DELETED');
-      api.saveData(targetId, { tasks: filteredTasks, team: newTeam });
+      // Не сохраняем задачи со статусом DELETED на сервер (мягкое удаление)
+      const activeTasks = newTasks.filter(t => (t as any).status !== 'DELETED');
+      api.saveData(targetId, { tasks: activeTasks, team: newTeam });
     }
   };
 
@@ -121,35 +139,43 @@ const App: React.FC = () => {
     syncData(tasks, newTeam);
   };
 
-  if (role === UserRole.NONE) {
-    return <LoginScreen onSelect={handleSelectRole} />;
-  }
-
   if (isLoading) {
     return (
-      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-[10px] font-bold text-blue-500 uppercase tracking-widest">Загрузка Matrix...</p>
+      <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center animate-pulse">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div className="text-center">
+          <h1 className="text-white font-black italic text-lg tracking-tighter">1C MATRIX</h1>
+          <p className="text-[9px] font-bold text-blue-500/60 uppercase tracking-[0.3em]">Инициализация системы...</p>
+        </div>
       </div>
     );
   }
 
+  if (role === UserRole.NONE) {
+    return <LoginScreen onSelect={handleSelectRole} />;
+  }
+
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-[#0F172A] text-slate-200 relative overflow-hidden">
-      <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/80 backdrop-blur-md z-30">
+      <header className="p-4 flex items-center justify-between border-b border-white/5 bg-[#0F172A]/90 backdrop-blur-md z-30 pt-safe">
         <div className="flex items-center gap-3">
-          <img src={userAvatar} className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10" alt="Avatar" />
-          <div>
+          <img 
+            src={userAvatar} 
+            className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10" 
+            onError={(e) => { (e.target as any).src = 'https://ui-avatars.com/api/?name=User'; }}
+            alt="User" 
+          />
+          <div className="min-w-0">
             <h1 className="text-xs font-black tracking-tighter text-white uppercase leading-none">1C MATRIX</h1>
-            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
-              {role === UserRole.ADMIN ? `Владелец: ${userName}` : `Команда: ${teamId}`}
+            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 truncate max-w-[120px]">
+              {role === UserRole.ADMIN ? `Владелец: ${userName}` : `Код: ${teamId}`}
             </p>
           </div>
         </div>
         <button 
           onClick={() => { localStorage.clear(); window.location.reload(); }}
-          className="text-[9px] font-bold text-slate-500 border border-slate-800 px-2 py-1 rounded active:bg-white/5 transition-colors"
-        >ВЫЙТИ</button>
+          className="text-[8px] font-black text-slate-500 border border-slate-800 px-2 py-1.5 rounded-lg active:bg-white/5 transition-all uppercase tracking-tighter"
+        >Сбросить</button>
       </header>
 
       <main className="flex-1 overflow-y-auto z-10 custom-scrollbar">
@@ -176,17 +202,19 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-30 pb-safe">
+      <nav className="p-3 bg-[#0F172A]/95 backdrop-blur-2xl border-t border-white/5 flex justify-around items-center z-30 pb-safe">
         {NAVIGATION.map((nav) => (
           <button
             key={nav.id}
             onClick={() => setActiveTab(nav.id)}
-            className={`flex flex-col items-center gap-1 transition-all ${
-              activeTab === nav.id ? 'text-blue-500 scale-105' : 'text-slate-500'
+            className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+              activeTab === nav.id ? 'text-blue-500 scale-110' : 'text-slate-600'
             }`}
           >
-            {nav.icon}
-            <span className="text-[9px] font-black uppercase tracking-tighter">{nav.label}</span>
+            <div className={`p-2 rounded-xl transition-colors ${activeTab === nav.id ? 'bg-blue-500/10' : ''}`}>
+              {nav.icon}
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-tighter">{nav.label}</span>
           </button>
         ))}
       </nav>
