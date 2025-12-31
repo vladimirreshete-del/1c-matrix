@@ -1,26 +1,32 @@
 
-import { Task, TeamMember } from '../types';
+// Добавлены недостающие типы для корректной типизации начальных данных
+import { Task, TeamMember, UserRole, TaskStatus, TaskImportance } from '../types';
 
 const KEYS = {
   TASKS: '1c_matrix_tasks',
   TEAM: '1c_matrix_team'
 };
 
+// Добавлено обязательное поле systemRole для участников команды
 const INITIAL_TEAM: TeamMember[] = [
-  { id: '1', name: 'Алексей Иванов', role: 'Руководитель', email: 'alex@1c.ru', avatar: 'https://picsum.photos/seed/alex/100/100' },
-  { id: '2', name: 'Мария Петрова', role: 'Разработчик', email: 'maria@1c.ru', avatar: 'https://picsum.photos/seed/maria/100/100' },
+  { id: '1', name: 'Алексей Иванов', role: 'Руководитель', systemRole: UserRole.ADMIN, email: 'alex@1c.ru', avatar: 'https://picsum.photos/seed/alex/100/100' },
+  { id: '2', name: 'Мария Петрова', role: 'Разработчик', systemRole: UserRole.EXECUTOR, email: 'maria@1c.ru', avatar: 'https://picsum.photos/seed/maria/100/100' },
 ];
 
+// Исправлены поля задачи: добавлена важность (вместо priority), номер и пустой список комментариев
 const INITIAL_TASKS: Task[] = [
   { 
     id: 't1', 
+    number: 1,
     title: 'Настройка окружения Render', 
+    companyName: 'ПАО Газпром',
     description: 'Подготовить конфигурационные файлы для деплоя бэкенда.',
-    status: 'IN_PROGRESS' as any,
-    priority: 'HIGH' as any,
+    status: TaskStatus.IN_PROGRESS,
+    importance: TaskImportance.KEY,
     assignedTo: '2',
     dueDate: '2023-12-31',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    comments: []
   }
 ];
 

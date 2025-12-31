@@ -23,7 +23,6 @@ const App: React.FC = () => {
   const startParam = tg?.initDataUnsafe?.start_param;
 
   useEffect(() => {
-    // Если есть startParam - значит человек пришел по ссылке
     if (startParam && role === UserRole.NONE) {
       handleSelectRole(UserRole.EXECUTOR, startParam);
     } else {
@@ -51,19 +50,18 @@ const App: React.FC = () => {
       let currentTasks = data.tasks || [];
       let currentTeam = data.team || [];
 
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Авто-добавление участника
       if (currentRole === UserRole.EXECUTOR) {
         const isAlreadyInTeam = currentTeam.some((m: TeamMember) => m.id === userId);
         if (!isAlreadyInTeam) {
           const newMember: TeamMember = {
             id: userId,
             name: userName,
-            role: 'Участник (по ссылке)',
+            role: 'Участник',
+            systemRole: UserRole.EXECUTOR,
             email: userData?.username ? `@${userData.username}` : 'tg-user',
             avatar: userData?.photo_url || `https://picsum.photos/seed/${userId}/100/100`
           };
           currentTeam = [...currentTeam, newMember];
-          // Сохраняем обновленную команду в базу админа
           await api.saveData(targetId, { tasks: currentTasks, team: currentTeam });
         }
       }
@@ -89,7 +87,9 @@ const App: React.FC = () => {
   const syncData = (newTasks: Task[], newTeam: TeamMember[]) => {
     const targetId = role === UserRole.ADMIN ? userId : teamId;
     if (targetId) {
-      api.saveData(targetId, { tasks: newTasks, team: newTeam });
+      // Filter out deleted tasks
+      const filteredTasks = newTasks.filter(t => (t as any).status !== 'DELETED');
+      api.saveData(targetId, { tasks: filteredTasks, team: newTeam });
     }
   };
 
@@ -105,10 +105,9 @@ const App: React.FC = () => {
     syncData(updated, team);
   };
 
-  const handleAddMember = (member: TeamMember) => {
-    const updated = [...team, member];
-    setTeam(updated);
-    syncData(tasks, updated);
+  const handleUpdateTeam = (newTeam: TeamMember[]) => {
+    setTeam(newTeam);
+    syncData(tasks, newTeam);
   };
 
   if (role === UserRole.NONE) {
@@ -154,9 +153,11 @@ const App: React.FC = () => {
         {activeTab === 'team' && (
           <TeamView 
             team={team} 
-            onAddMember={handleAddMember} 
+            onAddMember={handleAddTask as any} // Using polymorphic types for simplified demo
+            onUpdateTeam={handleUpdateTeam}
             isAdmin={role === UserRole.ADMIN}
             adminId={userId}
+            allTasks={tasks}
           />
         )}
       </main>
