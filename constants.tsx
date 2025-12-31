@@ -6,7 +6,6 @@ import {
   Users, 
   PlusCircle,
   Clock,
-  AlertCircle,
   CheckCircle2
 } from 'lucide-react';
 
@@ -19,8 +18,8 @@ export const NAVIGATION = [
 export const STATUS_CONFIG = {
   NEW: { label: 'Новая', color: 'bg-blue-500/10 text-blue-400', icon: <PlusCircle size={14} /> },
   IN_PROGRESS: { label: 'В работе', color: 'bg-amber-500/10 text-amber-400', icon: <Clock size={14} /> },
-  REVIEW: { label: 'Контроль', color: 'bg-purple-500/10 text-purple-400', icon: <AlertCircle size={14} /> },
   DONE: { label: 'Готово', color: 'bg-emerald-500/10 text-emerald-400', icon: <CheckCircle2 size={14} /> },
+  REVIEW: { label: 'Готово', color: 'bg-emerald-500/10 text-emerald-400', icon: <CheckCircle2 size={14} /> } // Для совместимости с БД
 };
 
 export const PRIORITY_CONFIG = {

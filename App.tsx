@@ -6,7 +6,6 @@ import { api } from './services/api';
 import Dashboard from './components/Dashboard';
 import TasksView from './components/TasksView';
 import TeamView from './components/TeamView';
-import AIView from './components/AIView';
 import LoginScreen from './components/LoginScreen';
 
 const App: React.FC = () => {
@@ -19,10 +18,9 @@ const App: React.FC = () => {
 
   const tg = (window as any).Telegram?.WebApp;
   const userId = tg?.initDataUnsafe?.user?.id?.toString() || 'dev_user_123';
-  const startParam = tg?.initDataUnsafe?.start_param; // ID админа из ссылки t.me/bot/app?startapp=ID
+  const startParam = tg?.initDataUnsafe?.start_param;
 
   useEffect(() => {
-    // Если приложение открыто по пригласительной ссылке
     if (startParam) {
       handleSelectRole(UserRole.EXECUTOR, startParam);
     } else {
@@ -96,8 +94,7 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="h-screen bg-[#0F172A] flex flex-col items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-blue-400 font-black text-[10px] mt-4 tracking-widest uppercase">Matrix Loading...</p>
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -137,13 +134,10 @@ const App: React.FC = () => {
             adminId={userId}
           />
         )}
-        {activeTab === 'ai' && (
-          <AIView tasks={tasks} teamCount={team.length} onUpdateTask={handleUpdateTask} />
-        )}
       </main>
 
       <nav className="p-3 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/5 flex justify-around items-center z-30">
-        {[...NAVIGATION, { id: 'ai', label: 'AI', icon: <span className="text-xl">✨</span> }].map((nav) => (
+        {NAVIGATION.map((nav) => (
           <button
             key={nav.id}
             onClick={() => setActiveTab(nav.id)}

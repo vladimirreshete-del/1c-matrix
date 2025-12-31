@@ -1,23 +1,26 @@
 
-import { Task, TeamMember, UserRole } from '../types';
-
-const getBaseUrl = () => {
-  // In production, this would be your Render.com URL
-  return window.location.origin;
-};
+import { Task, TeamMember } from '../types';
 
 export const api = {
   async getData(id: string) {
-    const res = await fetch(`/api/data/${id}`);
-    if (!res.ok) return { tasks: [], team: [] };
-    return res.json();
+    try {
+      const res = await fetch(`/api/data/${id}`);
+      if (!res.ok) throw new Error("Fetch failed");
+      return res.json();
+    } catch (e) {
+      return { tasks: [], team: [] };
+    }
   },
 
   async saveData(id: string, data: { tasks: Task[], team: TeamMember[] }) {
-    await fetch(`/api/data/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
+    try {
+      await fetch(`/api/data/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (e) {
+      console.error("Save error", e);
+    }
   }
 };
