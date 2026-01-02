@@ -17,7 +17,7 @@ const TeamView: React.FC<Props> = ({ team, onUpdateTeam, isAdmin, adminId, allTa
   const [isShowingInvite, setIsShowingInvite] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const directLink = `https://t.me/your_bot_name/app?startapp=${adminId}`;
+  const directLink = `https://t.me/super_crmka_bot/app?startapp=${adminId}`;
 
   return (
     <div className="p-4 space-y-6 pb-12">
