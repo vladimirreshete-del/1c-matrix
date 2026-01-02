@@ -37,7 +37,7 @@
         color: #F8FAFC;
         font-family: 'Inter', -apple-system, system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
-        overflow: hidden; /* Prevent body scroll, use app scroll */
+        overflow: hidden; 
       }
       #root { 
         height: 100vh; 
@@ -47,7 +47,7 @@
       }
       .app-container {
         width: 100%;
-        max-width: 500px; /* Ограничение для десктопа */
+        max-width: 500px;
         height: 100%;
         background-color: var(--bg-color);
         position: relative;
@@ -56,23 +56,12 @@
         flex-direction: column;
         box-shadow: 0 0 100px rgba(0,0,0,0.5);
       }
-      .glass-card {
-        background: rgba(30, 41, 59, 0.4);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-      }
       .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.2); border-radius: 10px; }
       .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem); }
       .pt-safe { padding-top: env(safe-area-inset-top); }
       
-      /* Анимации без скачков */
-      .fade-in { animation: fadeIn 0.2s ease-out; }
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      
-      /* Фикс для iOS WebView */
-      input, textarea { font-size: 16px !important; } 
+      input, textarea, select { font-size: 16px !important; } 
     </style>
     <script type="importmap">
 {
@@ -81,12 +70,12 @@
     "react-dom": "https://esm.sh/react-dom@19.0.0",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
     "lucide-react": "https://esm.sh/lucide-react@0.475.0",
-    "path": "https://esm.sh/path@^0.12.7",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "url": "https://esm.sh/url@^0.11.4",
-    "express": "https://esm.sh/express@^5.2.1",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "fs": "https://esm.sh/fs@^0.0.1-security"
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "express": "https://esm.sh/express@^5.2.1",
+    "path": "https://esm.sh/path@^0.12.7",
+    "fs": "https://esm.sh/fs@^0.0.1-security",
+    "url": "https://esm.sh/url@^0.11.4"
   }
 }
 </script>
