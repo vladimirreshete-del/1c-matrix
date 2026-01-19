@@ -13,7 +13,7 @@ const Dashboard: React.FC<Props> = ({ tasks, team }) => {
   const active = tasks.filter(t => t.status !== TaskStatus.DONE).length;
 
   return (
-    <div className="p-4 lg:p-0 space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="p-4 lg:p-0 space-y-4 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Hero Card */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] lg:rounded-[3.5rem] p-8 lg:p-14 text-white premium-shadow relative overflow-hidden group">
         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-1000" />
@@ -45,32 +45,36 @@ const Dashboard: React.FC<Props> = ({ tasks, team }) => {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
         
-        {/* Left Column: Stats */}
-        <div className="space-y-6 lg:space-y-8">
-            <div className="glass-card p-6 lg:p-8 rounded-[2.2rem] h-full">
-               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 mb-6 border border-blue-500/10">
-                 <Users size={22} />
+        {/* Left Column: Stats - Mobile: Side-by-side (2 cols), Desktop: Stacked (1 col) */}
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-8">
+            <div className="glass-card p-5 lg:p-8 rounded-[2rem] lg:rounded-[2.2rem] h-full flex flex-col justify-between">
+               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 mb-4 lg:mb-6 border border-blue-500/10">
+                 <Users size={20} className="lg:w-6 lg:h-6" />
                </div>
-               <div className="text-3xl lg:text-4xl font-black text-white tracking-tighter">{team.length}</div>
-               <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-2">Команда</div>
+               <div>
+                 <div className="text-2xl lg:text-4xl font-black text-white tracking-tighter">{team.length}</div>
+                 <div className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 lg:mt-2">Команда</div>
+               </div>
             </div>
             
-            <div className="glass-card p-6 lg:p-8 rounded-[2.2rem] h-full">
-               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mb-6 border border-amber-500/10">
-                 <Briefcase size={22} />
+            <div className="glass-card p-5 lg:p-8 rounded-[2rem] lg:rounded-[2.2rem] h-full flex flex-col justify-between">
+               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mb-4 lg:mb-6 border border-amber-500/10">
+                 <Briefcase size={20} className="lg:w-6 lg:h-6" />
                </div>
-               <div className="text-3xl lg:text-4xl font-black text-white tracking-tighter">{active}</div>
-               <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-2">В работе</div>
+               <div>
+                 <div className="text-2xl lg:text-4xl font-black text-white tracking-tighter">{active}</div>
+                 <div className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1 lg:mt-2">В работе</div>
+               </div>
             </div>
         </div>
         
         {/* Right Column (Span 2): Efficiency & Tabs */}
-        <div className="lg:col-span-2 flex flex-col gap-6 lg:gap-8">
+        <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-8">
             
             {/* Efficiency Progress */}
-            <div className="glass-card p-6 lg:p-8 rounded-[2.2rem]">
+            <div className="glass-card p-5 lg:p-8 rounded-[2rem] lg:rounded-[2.2rem]">
               <div className="flex justify-between items-center mb-6">
                 <div className="space-y-1">
                   <h3 className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic leading-none">Эффективность</h3>
@@ -95,19 +99,19 @@ const Dashboard: React.FC<Props> = ({ tasks, team }) => {
               </div>
             </div>
 
-            {/* Quick Access Tabs - Moved here */}
-            <div className="hidden lg:grid grid-cols-3 gap-6 lg:gap-8 flex-1">
+            {/* Quick Access Tabs - Now Visible on Mobile */}
+            <div className="grid grid-cols-3 gap-3 lg:gap-8 flex-1">
                 {[
-                  { title: "Уведомления", value: "0", icon: <TrendingUp size={18} />, color: "text-blue-500", bg: "bg-blue-500/10" },
-                  { title: "Дедлайны", value: "0", icon: <TrendingUp size={18} />, color: "text-red-500", bg: "bg-red-500/10" },
-                  { title: "Чат", value: "12", icon: <TrendingUp size={18} />, color: "text-emerald-500", bg: "bg-emerald-500/10" }
+                  { title: "Уведомления", value: "0", icon: <TrendingUp size={16} />, color: "text-blue-500", bg: "bg-blue-500/10" },
+                  { title: "Дедлайны", value: "0", icon: <TrendingUp size={16} />, color: "text-red-500", bg: "bg-red-500/10" },
+                  { title: "Чат", value: "12", icon: <TrendingUp size={16} />, color: "text-emerald-500", bg: "bg-emerald-500/10" }
                 ].map((item, i) => (
-                  <div key={i} className="glass-card p-6 rounded-[2rem] flex flex-col justify-between border-b-2 border-b-transparent hover:border-b-blue-500 transition-all group h-full">
-                     <div className="flex items-start justify-between w-full mb-4">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate min-w-0 pr-2">{item.title}</p>
-                        <div className={`${item.color} ${item.bg} p-2 rounded-xl`}>{item.icon}</div>
+                  <div key={i} className="glass-card p-4 lg:p-6 rounded-[1.5rem] lg:rounded-[2rem] flex flex-col justify-between border-b-2 border-b-transparent hover:border-b-blue-500 transition-all group h-full">
+                     <div className="flex items-start justify-between w-full mb-3 lg:mb-4">
+                        <p className="text-[8px] lg:text-[9px] font-black uppercase tracking-widest text-slate-500 truncate min-w-0 pr-1">{item.title}</p>
+                        <div className={`${item.color} ${item.bg} p-1.5 lg:p-2 rounded-xl hidden sm:block`}>{item.icon}</div>
                      </div>
-                     <p className="text-3xl font-black text-white">{item.value}</p>
+                     <p className="text-xl lg:text-3xl font-black text-white">{item.value}</p>
                   </div>
                 ))}
             </div>
